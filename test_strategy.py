@@ -4,26 +4,21 @@ import os.path
 import sys
 import pandas as pd
 
-data = pd.read_hdf('data/AAPL_1day.h5')
-data2006 = data["2006"]
-#data2006.tail()
 
-
-
-class TestStrategy(bt.Strategy):
+class MyStrategy(bt.Strategy):
     params = (
-        ('maperiod',15),
-        ('bol_period',20),
-        ('bol_dev_factor',2),
-
+        ('maperiod', 15),
+        ('bol_period', 20),
+        ('bol_dev_factor', 2),
     )
 
     def log(self, txt, dt=None):
-        ''' Logging function fot this strategy'''
+        ''' Logging function for this strategy'''
         dt = dt or self.datas[0].datetime.date(0)
         print('%s, %s' % (dt.isoformat(), txt))
 
     def __init__(self):
+        print("Running?")
         # Keep a reference to the "close" line in the data[0] dataseries
         self.dataclose = self.datas[0].close
 
@@ -104,3 +99,42 @@ class TestStrategy(bt.Strategy):
                 # Keep track of the created order to avoid a 2nd order
                 self.order = self.sell()
 
+
+if __name__ == '__main__':
+    # Create a cerebro entity
+    cerebro = bt.Cerebro()
+
+    # Add a strategy
+    cerebro.addstrategy(MyStrategy)
+
+    data_path = '/Users/hits/DropboxPersonal/notebooks/data/'
+    data_file = 'AAPL_1day.h5'
+    path = os.path.join(data_file + data_path)
+
+    # Create a Data Feed
+    all_data = pd.read_hdf(data_path + data_file)
+    all_data = all_data.sort_index()
+    data2006 = all_data["2006"]
+    #print(all_data.head())
+    #print(all_data.tail())
+    bt_data = bt.feeds.PandasData(dataname=data2006)
+
+    cerebro.adddata(bt_data)
+
+    # Set our desired cash start
+    cerebro.broker.setcash(1000000.0)
+
+    # Add a FixedSize sizer according to the stake
+    cerebro.addsizer(bt.sizers.FixedSize, stake=100000)
+
+    # Set the commission
+    cerebro.broker.setcommission(commission=0.0)
+
+    # Print out the starting conditions
+    print('Starting Portfolio Value: %.2f' % cerebro.broker.getvalue())
+
+    # Run over everything
+    cerebro.run()
+
+    # Print out the final result
+    print('Final Portfolio Value: %.2f' % cerebro.broker.getvalue())
