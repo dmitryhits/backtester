@@ -28,7 +28,11 @@ class FlexSizer(bt.Sizer):
 
 
 class CCI_Correction(bt.Strategy):
-    params = dict(period_long=100, period_short=20, sar_period=2, sar_af=0.015, sar_afmax=0.05)
+    params = dict(period_long=100, period_short=20,
+                  threshold_long_low = -100, threshold_long_high = 100,
+                  threshold_short_low=-100, threshold_short_high = 100,
+                  threshold_short_buy = 0, threshold_short_sell = 0,
+                  sar_period=2, sar_af=0.015, sar_afmax=0.05)
 
     def log(self, txt, dt=None):
         ''' Logging function for this strategy'''
@@ -43,13 +47,13 @@ class CCI_Correction(bt.Strategy):
         # Keep a reference to the "close" line in the data[0] dataseries
         self.dataclose = self.data.close
 
-        self.cci_long = ta_ind.CCI(self.data.high, self.data.low, self.data.close, timeperiod=self.p.period_long)
+        self.cci_long = ta_ind.CCI(self.data.high, self.data.low, self.data.close, timeperiod=self.params.period_long)
         # print('cci long')
-        self.cci_short = ta_ind.CCI(self.data.high, self.data.low, self.data.close, timeperiod=self.p.period_short)
+        self.cci_short = ta_ind.CCI(self.data.high, self.data.low, self.data.close, timeperiod=self.params.period_short)
         # print('cci short')
 
         self.Parabolic_SAR = psar.ParabolicSAR(self.data,
-                                               period=self.p.sar_period, af=self.p.sar_af, afmax=self.p.sar_afmax)
+                                               period=self.params.sar_period, af=self.params.sar_af, afmax=self.params.sar_afmax)
         self.bull_zone = False
         self.bearish_pull_back = False
         self.bullish_pull_back = False
@@ -93,25 +97,25 @@ class CCI_Correction(bt.Strategy):
             return
 
         # print('next')
-        if self.cci_long[0] > 100:
+        if self.cci_long[0] > self.params.threshold_long_high:
             self.bull_zone = True
             # print('Bull Zone')
-        if self.cci_long[0] < -100:
+        if self.cci_long[0] < self.params.threshold_long_low:
             self.bull_zone = False
             #print('Bear Zone')
-        if self.bull_zone and self.cci_short[0] < -100:
+        if self.bull_zone and self.cci_short[0] < self.params.threshold_short_low:
             self.bullish_pull_back = True
             self.bearish_pull_back = False
             # print('Bullish Pullback')
-        if (not self.bull_zone) and self.cci_short[0] > 100:
+        if (not self.bull_zone) and self.cci_short[0] > self.params.threshold_short_high:
             self.bearish_pull_back = True
             self.bullish_pull_back = False
             # print('Bearish Pullback')
-        if self.bullish_pull_back and self.cci_short[0] > 0:
+        if self.bullish_pull_back and self.cci_short[0] > self.params.threshold_short_buy:
             self.order = self.buy()
             self.bullish_pull_back =False
             # print('CCI short {0:.0f}, CCI_long {1:.0f}'.format(self.cci_short[0], self.cci_long[0]))
-        if self.bearish_pull_back and self.cci_short[0] < 0:
+        if self.bearish_pull_back and self.cci_short[0] < self.params.threshold_short_sell:
             self.order = self.sell()
             self.bearish_pull_back = False
         if self.position:
